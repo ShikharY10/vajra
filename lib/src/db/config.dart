@@ -8,5 +8,4 @@ class DataBase {
     await Hive.initFlutter(path);
     configBox = await Hive.openBox<String>("config");
   }
-  
 }

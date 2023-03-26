@@ -1,0 +1,67 @@
+import 'dart:convert';
+
+class Cookie {
+  String? name;
+  String? value;
+  String? path;
+  String? domain;
+  bool? isSecure;
+  bool? isHttpOnly;
+
+  Cookie({
+    this.name, 
+    this.value, 
+    this.path, 
+    this.domain,
+    this.isSecure,
+    this.isHttpOnly
+  });
+
+  String toJson() {
+    Map<String, dynamic> mapData = {
+      "name": name,
+      "value": value,
+      "path": path,
+      "domain": domain,
+      "isSecure": isSecure,
+      "isHttpOnly": isHttpOnly
+    };
+    return json.encode(mapData);
+  }
+
+  static Cookie fromJson(String jsonEncoded) {
+    Map<String, dynamic> mapData = json.decode(jsonEncoded);
+    return Cookie(
+      name: mapData["name"],
+      value: mapData["value"],
+      path: mapData["path"],
+      domain: mapData["domain"],
+      isSecure: mapData["isSecure"],
+      isHttpOnly: mapData["isHttpOnly"],
+    );
+  }
+}
+
+class Cookies {
+  final List<String> cookies = [];
+
+  String toJson() {
+    String jsonEncode = json.encode(cookies);
+    return jsonEncode;
+  }
+
+  static Cookies fromJson(String jsonEncoded) {
+    List<dynamic> newCookies = json.decode(jsonEncoded);
+
+    List<String> cookies = [];
+    
+    for (var value in newCookies) {
+      cookies.add(value);
+    }
+
+    Cookies c = Cookies();
+    c.cookies.addAll(cookies);
+
+    return c;
+  }
+}
