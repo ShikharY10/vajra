@@ -65,3 +65,28 @@ class Cookies {
     return c;
   }
 }
+
+class Header {
+  final Map<String, String> headers = {};
+  
+  void add(String key, value) {
+    headers[key] = value;
+  }
+
+  void remove(String key) {
+    headers.remove(key);
+  }
+
+  String toJson() {
+    return json.encode(headers);
+  }
+
+  static Header fromJson(String jsonData) {
+    Header header = Header();
+
+    Map<String, String> mapData = json.decode(jsonData);
+    header.headers.addAll(mapData);
+
+    return header;
+  }
+}
