@@ -1,18 +1,20 @@
 import 'dart:convert';
 
-class Cookie {
+class CookieModel {
   String? name;
   String? value;
   String? path;
   String? domain;
+  DateTime? expires;
   bool? isSecure;
   bool? isHttpOnly;
 
-  Cookie({
+  CookieModel({
     this.name, 
     this.value, 
     this.path, 
     this.domain,
+    this.expires,
     this.isSecure,
     this.isHttpOnly
   });
@@ -23,22 +25,29 @@ class Cookie {
       "value": value,
       "path": path,
       "domain": domain,
+      "expires": expires!.toIso8601String(),
       "isSecure": isSecure,
       "isHttpOnly": isHttpOnly
     };
     return json.encode(mapData);
   }
 
-  static Cookie fromJson(String jsonEncoded) {
+  static CookieModel fromJson(String jsonEncoded) {
     Map<String, dynamic> mapData = json.decode(jsonEncoded);
-    return Cookie(
+    return CookieModel(
       name: mapData["name"],
       value: mapData["value"],
       path: mapData["path"],
       domain: mapData["domain"],
+      expires: DateTime.parse(mapData["expires"]),
       isSecure: mapData["isSecure"],
       isHttpOnly: mapData["isHttpOnly"],
     );
+  }
+
+  @override
+  String toString() {
+    return toJson();
   }
 }
 

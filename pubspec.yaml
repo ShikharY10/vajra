@@ -12,6 +12,9 @@ dependencies:
     sdk: flutter
   hive:
   hive_flutter: ^1.1.0
+  # this package is used to accessing local paths of the device.
+  http: ^0.13.5
+  path_provider: ^2.0.11
 
 dev_dependencies:
   flutter_test:
