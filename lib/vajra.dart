@@ -1,6 +1,7 @@
 library vajra;
 
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'src/db/config.dart';
 import 'src/db/models.dart';
@@ -36,6 +37,8 @@ class Vajra {
   }
 
   Map<String, String> _attachHeaders(bool secured, bool sendCookie, Map<String, String>? headers) {
+    print("sendCookie: $sendCookie");
+
     Map<String, String> header = {};
 
     header.addAll(_headers);
@@ -53,15 +56,23 @@ class Vajra {
     }
 
     if (sendCookie) {
+
+      print("_cookie: $_cookie");
+
       String cookie = "";
       _cookie.forEach((key, value) {
+
+        print("Key: $key  Value: $value");
+
         if (value.expires!.isAfter(DateTime.now())) {
+          print("expire after");
           if (cookie.isEmpty) {
             cookie = "$key=${value.value}";
           } else {
             cookie = "$cookie;$key=${value.value}";
           }
         } else {
+          print("removing cookie | Key: " + key);
           _cookie.remove(key);
         }
       });
@@ -151,7 +162,6 @@ class Vajra {
   Future<VajraResponse> get(String endPoint, bool secured, bool sendCookie, {Map<String, String>? headers, Map<String, String>? queries}) async {
     String url = _basePath + endPoint;
 
-
     Map<String, String> header = _attachHeaders(secured, sendCookie, headers);
 
     String uri = _attachQueries(url, queries);
@@ -176,6 +186,7 @@ class Vajra {
         String? setCookies = response.headers["set-cookie"];
         if (setCookies != null) {
           cookies = _extractCookies(setCookies);
+          print("cookies: $cookies");
         }
 
         Cookies savedCookies = Cookies();
@@ -184,14 +195,16 @@ class Vajra {
           savedCookies = Cookies.fromJson(strCookies);
         }
 
-        for (var c in cookies) {
+        for (CookieModel c in cookies) {
           if (c.name != null) {
             savedCookies.cookies.add(c.name!);
             _db.configBox.put(c.name, c.toJson());
+            print("adding to _cookie");
             _cookie[c.name!] = c;
-            print(c);
+            
           }
         }
+        print("_cookie1: $_cookie");
         _db.configBox.put("cookies", savedCookies.toJson());
         
         body = json.decode(String.fromCharCodes(response.bodyBytes));
@@ -344,4 +357,15 @@ class VajraResponse {
   String errorMessage;
 
   VajraResponse(this.statusCode, this.body, this.isError, this.errorMessage);
+
+  @override
+  String toString() {
+    Map<String, dynamic> mapData = {
+      "statusCode": statusCode,
+      "body": body,
+      "isError": isError,
+      "errorMessage": errorMessage
+    };
+    return json.encode(mapData);
+  }
 }
