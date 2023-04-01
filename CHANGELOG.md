@@ -1,3 +1,7 @@
 ## 0.0.1
 
-* TODO: Describe initial release.
+- Initial package.
+
+## 0.0.2
+
+- Solved the issue with vajra logo
