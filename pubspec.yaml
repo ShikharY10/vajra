@@ -1,5 +1,5 @@
 name: vajra
-description: A new Flutter package project.
+description: A browser like http client for flutter application.
 version: 0.0.1
 homepage:
 
@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  hive:
+  get_it: ^7.2.0
   hive_flutter: ^1.1.0
   # this package is used to accessing local paths of the device.
   http: ^0.13.5
