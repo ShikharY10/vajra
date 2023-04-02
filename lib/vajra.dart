@@ -13,14 +13,16 @@ class Vajra {
 
   late DataBase _db;
   String _directoryPath = "";
-
+  String _name = "";
   bool _isInitialized = false;
+  Duration _timeout = const Duration(seconds: 30);
 
   final Map<String, CookieModel> _cookie = {};
   final Map<String, String> _headers = {};
   String _basePath = "";
 
-  Vajra(String directoryPath, {String? basePath}) {
+  Vajra(String name, String directoryPath, {String? basePath}) {
+    _name = name;
     _directoryPath = directoryPath;
     if (basePath != null) {
       _basePath = basePath;
@@ -31,7 +33,7 @@ class Vajra {
     _db = DataBase();
     await _db.flutterInit(_directoryPath);
     _isInitialized = true;
-    GetIt.I.registerSingleton<Vajra>(this, instanceName: "vajra");
+    GetIt.I.registerSingleton<Vajra>(this, instanceName: _name);
   }
 
   Map<String, String> _attachHeaders(bool secured, bool sendCookie, Map<String, String>? headers) {
@@ -89,6 +91,7 @@ class Vajra {
         } else {
           uri = "&$uri$key=$value";
         }
+        count++;
       });
     }
     return uri;
@@ -158,6 +161,16 @@ class Vajra {
   /// returns all saved and valid cookies
   Map<String, CookieModel> get cookies => _cookie;
 
+  /// set default timeout which will be applied to every request if user have
+  /// not explicitly assign a timeout to a particular request.
+  /// 
+  /// If user does not set the default timeout then a timeout of 30 seconds would
+  /// be applied as default timeout to every request.
+  setDefaultTimeout(Duration timeout) {
+    _timeout = timeout;
+  }
+
+
   /// set headers that will be attached to every request you make
   setDefaultHeaders(Map<String, String> headers) {
     _headers.addAll(headers);
@@ -197,7 +210,7 @@ class Vajra {
   /// client.get("/testget", true, true, expectAuthorization: true, headers: {"service": "vajra"})
   /// 
   /// ```
-  Future<VajraResponse> get(String endPoint, {bool secured = false, bool sendCookie = false, bool expectAuthorization = false, Map<String, String>? headers, Map<String, String>? queries}) async {
+  Future<VajraResponse> get(String endPoint, {bool secured = false, bool sendCookie = false, bool expectAuthorization = false, Map<String, String>? headers, Map<String, String>? queries, Duration? timeout}) async {
     String url = _basePath + endPoint;
 
     Map<String, String> header = _attachHeaders(secured, sendCookie, headers);
@@ -213,6 +226,11 @@ class Vajra {
       http.Response response = await http.get(
         Uri.parse(uri),
         headers: header
+      ).timeout(
+        (timeout != null) ? timeout : _timeout,
+        onTimeout: () {
+          return http.Response.bytes([], 404);
+        }
       );
       responseCode = response.statusCode;
       if (response.statusCode >= 200 && response.statusCode <= 204) {
@@ -297,7 +315,7 @@ class Vajra {
   /// client.post("/testpost", {"test": "post"}, secured: true, sendCookie: true, expectAuthorization: true, headers: {"service": "vajra"})
   /// 
   /// ```
-  Future<VajraResponse> post(String endPoint, Map<String, dynamic> body, {bool secured = false, bool sendCookie = false, bool expectAuthorization = false, Map<String, String>? headers, Map<String, String>? queries}) async {
+  Future<VajraResponse> post(String endPoint, Map<String, dynamic> body, {bool secured = false, bool sendCookie = false, bool expectAuthorization = false, Map<String, String>? headers, Map<String, String>? queries, Duration? timeout}) async {
 
     String uri = _basePath + endPoint;
 
@@ -317,6 +335,11 @@ class Vajra {
         Uri.parse(uri),
         headers: header,
         body: jsonBody
+      ).timeout(
+        (timeout != null) ? timeout : _timeout,
+        onTimeout: () {
+          return http.Response.bytes([], 404);
+        }
       );
 
       responseCode = response.statusCode;
@@ -403,7 +426,7 @@ class Vajra {
   /// client.put("/testput", {"test": "put"}, secured: true, sendCookie: true, expectAuthorization: true, headers: {"service": "vajra"});
   /// 
   /// ```
-  Future<VajraResponse>put(String endPoint, Map<String, dynamic> body, {bool secured = false, bool sendCookie = false, bool expectAuthorization = false, Map<String, String>? headers, Map<String, String>? queries}) async {
+  Future<VajraResponse>put(String endPoint, Map<String, dynamic> body, {bool secured = false, bool sendCookie = false, bool expectAuthorization = false, Map<String, String>? headers, Map<String, String>? queries, Duration? timeout}) async {
     String uri = _basePath + endPoint;
 
     Map<String, String> header = _attachHeaders(secured, sendCookie, headers);
@@ -421,6 +444,11 @@ class Vajra {
         Uri.parse(uri),
         headers: header,
         body: jsonBody
+      ).timeout(
+        (timeout != null) ? timeout : _timeout,
+        onTimeout: () {
+          return http.Response.bytes([], 404);
+        }
       );
       responseCode = response.statusCode;
       if (response.statusCode >= 200 && response.statusCode <= 204) {
@@ -504,7 +532,7 @@ class Vajra {
   /// client.delete("/testdelete", {"test": "delete"}, secured: true, sendCookie: true, expectAuthorization: true, headers: {"service": "vajra"});
   /// 
   /// ```
-  Future<VajraResponse>delete(String endPoint, Map<String, dynamic> body,  {bool secured = false, bool sendCookie = false, bool expectAuthorization = false, Map<String, String>? headers, Map<String, String>? queries}) async {
+  Future<VajraResponse>delete(String endPoint, Map<String, dynamic> body,  {bool secured = false, bool sendCookie = false, bool expectAuthorization = false, Map<String, String>? headers, Map<String, String>? queries, Duration? timeout}) async {
     String uri = _basePath + endPoint;
 
     Map<String, String> header = _attachHeaders(secured, sendCookie, headers);
@@ -522,7 +550,13 @@ class Vajra {
         Uri.parse(uri),
         headers: header,
         body: jsonBody
+      ).timeout(
+        (timeout != null) ? timeout : _timeout,
+        onTimeout: () {
+          return http.Response.bytes([], 404);
+        }
       );
+      
       responseCode = response.statusCode;
       if (response.statusCode >= 200 && response.statusCode <= 204) {
         isError = false;
@@ -582,8 +616,9 @@ class Vajra {
   }
 }
 
-Vajra getVajra() {
-  return GetIt.I.get<Vajra>(instanceName: "vajra");
+/// returns the vajra client instance according to the name
+Vajra getVajra(String name) {
+  return GetIt.I.get<Vajra>(instanceName: name);
 }
 
 /// response class for request that you make.
