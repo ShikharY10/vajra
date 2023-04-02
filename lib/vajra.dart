@@ -3,7 +3,7 @@ library vajra;
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'src/security_scheme.dart';
+import 'scheme/security_scheme.dart';
 import 'src/db/config.dart';
 import 'src/db/models.dart';
 import 'package:get_it/get_it.dart';
