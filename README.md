@@ -21,7 +21,7 @@ void main() async {
   Directory directory = await getApplicationDocumentsDirectory();
 
   // Initializing Vajra class
-  Vajra client = Vajra(directory.path, basePath: "http://10.0.2.2:8000");
+  Vajra client = Vajra("test",directory.path, basePath: "http://10.0.2.2:8000");
   await client.initialize();
   client.setDefaultAuthorization(SecurityScheme.bearer, "body", "token");
 
@@ -32,7 +32,7 @@ void main() async {
 .
 .
 // access the vajra client anywhere in your application.
-Vajra vajraClient = getVajra();
+Vajra vajraClient = getVajra("test");
 final VajraResponse vajraResponse = await client.get(
   "/testget",
   secured: true,
