@@ -1,6 +1,6 @@
 name: vajra
 description: A browser like http client for flutter application.
-version: 0.0.4
+version: 0.0.5
 repository: https://github.com/ShikharY10/vajra
 
 environment:
