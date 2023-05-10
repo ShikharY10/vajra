@@ -12,7 +12,14 @@
 
 ## 0.0.4
 
-- resolved bug while attaching multiple queries.
-- started supporting multiple instances of vajra client using name.
-- added timeout to every request.
-- added a method for setting default timeout.
+- Resolved bug while attaching multiple queries.
+- Started supporting multiple instances of vajra client using name.
+- Added timeout to every request.
+- Added a method for setting default timeout.
+
+## 0.0.5
+
+- Resolved bug while attaching multiple queries.
+- Resolving this bug is also done in past version but those where not that good
+- Resolved bug related to attaching cookie to request after app restart.
+- Implemented automatic refresh of accessToken. Testing left.

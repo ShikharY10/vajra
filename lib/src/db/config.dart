@@ -4,13 +4,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 class DataBase {
   late Box<String> configBox;
 
-  init(String path) async {
-    Hive.init(path);
-    configBox = await Hive.openBox<String>("config");
-  }
-
-  flutterInit(String path) async {
+  flutterInit(String path, String name) async {
     await Hive.initFlutter(path);
-    configBox = await Hive.openBox<String>("config");
+    configBox = await Hive.openBox<String>("$name.config");
   }
 }

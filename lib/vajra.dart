@@ -2,6 +2,7 @@
 library vajra;
 
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'scheme/security_scheme.dart';
 import 'src/db/config.dart';
@@ -16,6 +17,9 @@ class Vajra {
   String _name = "";
   bool _isInitialized = false;
   Duration _timeout = const Duration(seconds: 30);
+  late Future<int> Function (String newAccessTOken) _onRefreshTokenExpired;
+
+  bool isLoggedOut = false;
 
   final Map<String, CookieModel> _cookie = {};
   final Map<String, String> _headers = {};
@@ -31,7 +35,7 @@ class Vajra {
 
   _initiateDB() async {
     _db = DataBase();
-    await _db.flutterInit(_directoryPath);
+    await _db.flutterInit(_directoryPath, _name);
     _isInitialized = true;
     GetIt.I.registerSingleton<Vajra>(this, instanceName: _name);
   }
@@ -40,44 +44,48 @@ class Vajra {
 
     Map<String, String> header = {};
 
-    header.addAll(_headers);
+    try {
+      header.addAll(_headers);
 
-    if (secured) {
-      String? authorizationType = _db.configBox.get("authorization.type");
-      String? authorizationValue = _db.configBox.get("authorization.value");
-      if (authorizationType != null) {
-        if (authorizationType == "bearer") {
-          if (authorizationValue != null) {
-            header["Authorization"] = "bearer $authorizationValue";
+      if (secured) {
+        String? authorizationType = _db.configBox.get("authorization.type");
+        if (authorizationType != null) {
+          if (authorizationType == "bearer") {
+            String? authorizationValue = _db.configBox.get("authorization.value");
+            if (authorizationValue != null) {
+              
+              header["Authorization"] = "bearer $authorizationValue";
+            }
           }
-          
         }
       }
-    }
 
-    if (sendCookie) {
+      if (sendCookie) {
 
-      String cookie = "";
-      _cookie.forEach((key, value) {
+        String cookie = "";
+        _cookie.forEach((key, value) {
 
-        if (value.expires!.isAfter(DateTime.now())) {
-          if (cookie.isEmpty) {
-            cookie = "$key=${value.value}";
+          if (value.expires!.isAfter(DateTime.now())) {
+            if (cookie.isEmpty) {
+              cookie = "$key=${value.value}";
+            } else {
+              cookie = "$cookie;$key=${value.value}";
+            }
           } else {
-            cookie = "$cookie;$key=${value.value}";
+            _cookie.remove(key);
           }
-        } else {
-          _cookie.remove(key);
-        }
-      });
+        });
 
-      header["Cookie"] = cookie;
+        header["Cookie"] = cookie;
+
+      }
+
+      if (headers != null) {
+        header.addAll(headers);
+      }
+    } catch (e) {
+      return header;
     }
-
-    if (headers != null) {
-      header.addAll(headers);
-    }
-
     return header;
   }
 
@@ -89,7 +97,7 @@ class Vajra {
         if (count == 0) {
           uri = "$uri$key=$value";
         } else {
-          uri = "&$uri$key=$value";
+          uri = "$uri&$key=$value";
         }
         count++;
       });
@@ -153,6 +161,22 @@ class Vajra {
   /// Initilize the client before doing any further operation. It is a compulsory step
   Future<void> initialize() async {
     await _initiateDB();
+
+    Cookies savedCookies = Cookies();
+    String? strCookies = _db.configBox.get("cookies");
+    if (strCookies != null) {
+      savedCookies = Cookies.fromJson(strCookies);
+
+      for (int i=0; i<savedCookies.cookies.length;i++) {
+        String name = savedCookies.cookies[i];
+        String? cookie = _db.configBox.get(name);
+        if (cookie != null) {
+          CookieModel cookieModel = CookieModel.fromJson(cookie);
+          _cookie[name] = cookieModel;
+        }
+      }
+    }
+
   }
 
   /// returns false if client is not initialized and true if client is initialized.
@@ -168,6 +192,10 @@ class Vajra {
   /// be applied as default timeout to every request.
   setDefaultTimeout(Duration timeout) {
     _timeout = timeout;
+  }
+
+  setAuthorizationToken(String accessToken) {
+    _db.configBox.put("authorization.value", accessToken);
   }
 
 
@@ -186,6 +214,28 @@ class Vajra {
     _db.configBox.put("authorization.type", scheme.name);
     _db.configBox.put("authorization.expectIn", expectIn);
     _db.configBox.put("authorization.name", name);
+  }
+
+  setDefaultReauthorizationScheme(int onStatusCode, Future<int> Function (String newAccessTOken) onTregered) {
+    _db.configBox.put("authorization.isAuthorize", "1");
+    _db.configBox.put("authorization.reauthorizationCode", onStatusCode.toString());
+    _onRefreshTokenExpired = onTregered;
+  }
+
+  Future<bool> _internalReauthorizationScheme(int statusCode) async {
+    String? isAuthorize = _db.configBox.get("authorization.isAuthorize");
+    if (isAuthorize != null && isAuthorize == "1") {
+      String? onStatusCode = _db.configBox.get("authorization.reauthorizationCode");
+      if (onStatusCode != null && onStatusCode == statusCode.toString()) {
+        int statusCode = await _onRefreshTokenExpired("");
+        if (statusCode == 200) {
+          return true;
+        } else if (statusCode == 401) {
+          isLoggedOut = true;
+        }
+      }
+    }
+    return false;
   }
 
   /// Make Get Request.
@@ -232,6 +282,9 @@ class Vajra {
           return http.Response.bytes([], 404);
         }
       );
+
+      // _internalReauthorizationScheme(response.statusCode);
+
       responseCode = response.statusCode;
       if (response.statusCode >= 200 && response.statusCode <= 204) {
         isError = false;
@@ -259,7 +312,13 @@ class Vajra {
         }
         _db.configBox.put("cookies", savedCookies.toJson());
 
-        body = json.decode(String.fromCharCodes(response.bodyBytes));
+        if (response.headers["content-type"] == "image/jpeg") {
+          body = response.bodyBytes;
+        } else {
+          body = json.decode(String.fromCharCodes(response.bodyBytes));
+        }
+
+        
 
         if (expectAuthorization) {
           String? expectIn = _db.configBox.get("authorization.expectIn");
@@ -278,9 +337,10 @@ class Vajra {
         if (body is String) {
           errorMsg = body;
         }
+
       }
     } catch (e) {
-      errorMsg = "local error";
+      errorMsg = "local error | ${e.toString()}";
     }
     
     return VajraResponse(
@@ -426,7 +486,7 @@ class Vajra {
   /// client.put("/testput", {"test": "put"}, secured: true, sendCookie: true, expectAuthorization: true, headers: {"service": "vajra"});
   /// 
   /// ```
-  Future<VajraResponse>put(String endPoint, Map<String, dynamic> body, {bool secured = false, bool sendCookie = false, bool expectAuthorization = false, Map<String, String>? headers, Map<String, String>? queries, Duration? timeout}) async {
+  Future<VajraResponse> put(String endPoint, Map<String, dynamic> body, {bool secured = false, bool sendCookie = false, bool expectAuthorization = false, Map<String, String>? headers, Map<String, String>? queries, Duration? timeout}) async {
     String uri = _basePath + endPoint;
 
     Map<String, String> header = _attachHeaders(secured, sendCookie, headers);
@@ -497,7 +557,7 @@ class Vajra {
         }
       }
     } catch (e) {
-      errorMsg = "local error";
+      errorMsg = "[LOCAL ERROR] -> $e";
     }
     
     return VajraResponse(
